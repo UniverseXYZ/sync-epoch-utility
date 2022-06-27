@@ -1,0 +1,36 @@
+.current-epoch {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+.epoch.in-sync {
+	color: limegreen;
+}
+
+.epoch.out-of-sync {
+	color: yellow;
+}
+
+.epoch.pending-sync {
+	color: green;
+}
+
+.token-name {
+	text-align: left;
+}
+
+a.staking-contract {
+	font-size: 60%;
+	position: relative;
+	top: 12px;
+}
+
+td {
+	min-height: 33px;
+	padding:  4px 12px;
+}
+
+th {
+	padding: 14px;
+}
