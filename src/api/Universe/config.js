@@ -17,7 +17,7 @@ const config = {
 	tokenAbi: [
 		"function decimals() view returns (uint8)"
 	],
-	// 
+	// Impersonate a wallet by setting its address here, otherwise set to false
 	impersonate: false/*'0x97Ed95Ac6bD27C369ca28A519476C241BB0d1532'*/
 }
 
