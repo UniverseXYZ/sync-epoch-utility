@@ -9,7 +9,8 @@ import './App.css';
 type AppProps = {};
 type AppState = {
   account?: string,
-  provider?: ethers.providers.Provider
+  provider?: ethers.providers.Provider,
+  pools: string[]
 };
 
 class App extends Component<AppProps, AppState> {
@@ -18,7 +19,16 @@ class App extends Component<AppProps, AppState> {
     super(props);
     this.state = {
       account: undefined,
-      provider: undefined
+      provider: undefined,
+      pools: [
+        'aave',
+        'barnbridge',
+        'compound',
+        'illuvium',
+        'link',
+        'sushi',
+        'synthetix'
+      ]
     }
     this.handleAccountChanged = this.handleAccountChanged.bind(this);
     this.handleEthereumConnected = this.handleEthereumConnected.bind(this);
@@ -34,7 +44,7 @@ class App extends Component<AppProps, AppState> {
 
   render() {
 
-    const { account, provider } = this.state;
+    const { account, provider, pools } = this.state;
 
     return (
       <div className="App">
@@ -42,7 +52,7 @@ class App extends Component<AppProps, AppState> {
           <div>
             <Ethereum onEthereumConnected={this.handleEthereumConnected} onAccountChanged={this.handleAccountChanged} />
           </div>
-          <Universe account={account} provider={provider} />
+          <Universe account={account} impersonate={false} pools={pools} provider={provider} />
         </header>
       </div>
     );

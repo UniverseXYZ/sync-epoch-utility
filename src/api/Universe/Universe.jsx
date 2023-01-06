@@ -3,6 +3,7 @@ import React, { Component } from 'react';
 import { ethers } from "ethers";
 
 import config from './config.js';
+
 import './Universe.css';
 
 export default class Universe extends Component {
@@ -12,9 +13,16 @@ export default class Universe extends Component {
 		
 		this.state = {
 			balances: {},
-			pools: {}
+			epochs: {}
 		};
 		
+		// Map token names to their pool addresses
+		this.poolAddresses = this.props.pools.reduce((acc, tokenName) => {
+			acc[tokenName] = process.env[`REACT_APP_POOL_${tokenName.toUpperCase()}`];
+			return acc;
+		}, {});
+
+		this.stakingContractAddress = process.env.REACT_APP_STAKING_CONTRACT_ADDRESS;
 		this.tokenDecimals = {};
 
 		this.handleSyncButtonClick = this.handleSyncButtonClick.bind(this);
@@ -35,16 +43,16 @@ export default class Universe extends Component {
 
 	handleSyncButtonClick(event) {
 		const tokenName = event.target.dataset.token,
-			nextEpoch = this.state.pools[tokenName] + 1;
+			nextEpoch = this.state.epochs[tokenName] + 1;
 
 		this.manualEpochInit(tokenName, nextEpoch);
 	}
 
 	async handleWithdrawRequest(event) {
-		const userAddr = config.impersonate,
+		const userAddr = this.props.impersonate,
 			impersonatedContract = this.contract.connect(userAddr),
 			tokenName = event.target.dataset.token,
-			tokenAddr = config.pools[tokenName],
+			tokenAddr = this.poolAddresses[tokenName],
 			balance = this.state.balances[tokenName];
 
 		if(window.confirm(`Withraw ${balance} ${tokenName}?`)) {
@@ -56,7 +64,7 @@ export default class Universe extends Component {
 	async initialize() {
 		// Init contract object
 		this.contract = new ethers.Contract(
-			config.stakingContractAddress,
+			this.stakingContractAddress,
 			config.abi,
 			this.props.provider
 		);
@@ -67,7 +75,7 @@ export default class Universe extends Component {
 
 		// Store current epoch in state, then lookup most recently initialized epoch for each farm
 		this.setState({ currentEpoch }, () => {
-			for(let tokenName of Object.keys(config.pools)) {
+			for(let tokenName of this.props.pools) {
 				this.updateLatestInitializedEpoch(tokenName);
 				this.updateUserPoolBalance(tokenName);
 			}
@@ -85,7 +93,7 @@ export default class Universe extends Component {
 		}
 
 		// Call contract function
-		const tokenAddress = config.pools[tokenName];
+		const tokenAddress = this.poolAddresses[tokenName];
 		const tx = await this.contract.manualEpochInit([tokenAddress], epoch);
 		await tx.wait(1);  // Wait for a confirmation
 
@@ -98,7 +106,7 @@ export default class Universe extends Component {
 
 			if(!this.tokenDecimals[tokenName]) {
 				const tokenContract = new ethers.Contract(
-					config.pools[tokenName],
+					this.poolAddresses[tokenName],
 					config.tokenAbi,
 					this.props.provider
 				);
@@ -109,7 +117,7 @@ export default class Universe extends Component {
 			//const balanceBigNumber = await this.contract.balanceOf(
 			const balanceBigNumber = await this.contract.balanceOf(
 				config.impersonate || this.props.account,
-				config.pools[tokenName]
+				this.poolAddresses[tokenName]
 			);
 
 			const balance = ethers.BigNumber.from(balanceBigNumber._hex).toNumber();
@@ -131,25 +139,25 @@ export default class Universe extends Component {
 
 		// Work backwards from current epoch to find most recently initialized epoch for the token
 		do{
-			initialized = await this.contract.epochIsInitialized(config.pools[tokenName], epoch);
+			initialized = await this.contract.epochIsInitialized(this.poolAddresses[tokenName], epoch);
 			initialized || (epoch -= 1);
 		} while (!initialized);
 
 		this.setState(currentState => {
-			const pools = currentState.pools;
-			pools[tokenName] = epoch;
-			return { pools };
+			const epochs = currentState.epochs;
+			epochs[tokenName] = epoch;
+			return { epochs };
 		});
 	}
 
 	render() {
 		
-		const { balances, currentEpoch, pools } = this.state,
+		const { balances, currentEpoch, epochs } = this.state,
 			columns = ['Pool', 'Epoch', 'Balance', 'Action'],
-			contractUrl = `https://etherscan.io/address/${config.stakingContractAddress}#code`;
+			contractUrl = `https://etherscan.io/address/${this.stakingContractAddress}#code`;
 
-		const rows = Object.keys(pools).sort().map((tokenName , index) => {
-			const epoch = pools[tokenName],
+		const rows = Object.keys(epochs).sort().map((tokenName , index) => {
+			const epoch = epochs[tokenName],
 				action = epoch < currentEpoch ? 'sync' : (balances[tokenName] > 0 ? 'withdraw' : undefined),
 				balancePretty = balances[tokenName] ? ethers.utils.formatUnits(balances[tokenName], this.tokenDecimals[tokenName]) : 0,
 				epochClassName = epoch === currentEpoch
@@ -161,7 +169,7 @@ export default class Universe extends Component {
 					: action === 'withdraw'
 						? <button data-token={tokenName} onClick={this.handleWithdrawRequest}>Withdraw</button>
 						: '',
-				tokenAddress = config.pools[tokenName];
+				tokenAddress = this.poolAddresses[tokenName];
 
 			return (
 				<tr key={index}>
@@ -179,7 +187,7 @@ export default class Universe extends Component {
 				{ currentEpoch &&
 				<div className="current-epoch abs top left">Current Epoch: <span className='epoch in-sync'>{currentEpoch}</span></div>
 				}
-				{ Object.keys(pools).length > 0 &&
+				{ Object.keys(epochs).length > 0 &&
 				<table>
 					<thead>
 						<tr><th colSpan={columns.length}>Staking Pools</th></tr>
